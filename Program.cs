@@ -1,5 +1,7 @@
 using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.Repositories;
+using Eventsystem.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +17,7 @@ namespace Eventsystem
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
