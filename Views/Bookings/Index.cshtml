@@ -1,0 +1,46 @@
+﻿@model IEnumerable<Booking>
+
+<div class="container mt-4">
+    <h2>My Bookings</h2>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">No bookings found at the moment.</div>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Booking Reference</th>
+                    <th>Booking Date</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var booking in Model)
+                {
+                    <tr>
+                        <td><strong>@booking.BookingReference</strong></td>
+                        <td>@booking.BookingDate.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@booking.TotalAmount EGP</td>
+                        <td>
+                            <span class="badge bg-success">@booking.Status</span>
+                        </td>
+                        <td>
+                         
+                            <a asp-action="Details" asp-route-id="@booking.Id" class="btn btn-info btn-sm">Details</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

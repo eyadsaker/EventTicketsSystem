@@ -1,0 +1,20 @@
+﻿@model IEnumerable<Event>
+
+<div class="container mt-4">
+    <h2>Available Events</h2>
+    <div class="row">
+        @foreach (var item in Model)
+        {
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@item.Title</h5>
+                        <p class="card-text">@item.Description</p>
+                    
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-primary">View Details & Tickets</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

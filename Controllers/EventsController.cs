@@ -1,5 +1,6 @@
 using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.ViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -33,17 +34,26 @@ namespace Eventsystem.Controllers
                 .Include(e => e.Venue)
                 .Include(e => e.TicketTypes)
                 .Include(e => e.Reviews)
+                    .ThenInclude(r => r.User)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (ev == null) return NotFound();
 
-            return View(ev);
-        }
+       
+            var viewModel = new EventDetailsVM
+            {
+                Event = ev,
+                TicketTypes = ev.TicketTypes.Select(t => new TicketTypeVM
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Price = t.Price,
+                    AvailableQuantity = t.Available, 
+                    SelectedQuantity = 1
+                }).ToList()
+            };
 
-        public IActionResult Create()
-        {
-            PopulateDropDowns();
-            return View();
+            return View(viewModel);
         }
 
         [HttpPost]

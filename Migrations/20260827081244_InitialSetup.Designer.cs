@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Eventsystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260826194048_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260827081244_InitialSetup")]
+    partial class InitialSetup
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -299,6 +299,12 @@ namespace Eventsystem.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<int>("SoldQuantity")
                         .HasColumnType("int");
