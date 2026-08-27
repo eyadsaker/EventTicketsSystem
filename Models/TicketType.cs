@@ -22,6 +22,10 @@ namespace Eventsystem.Models
 
         public int SoldQuantity { get; set; } = 0;
 
+     
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
         public ICollection<BookingItem> BookingItems { get; set; } = new List<BookingItem>();
 
         [NotMapped]
