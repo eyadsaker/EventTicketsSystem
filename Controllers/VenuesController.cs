@@ -1,29 +1,29 @@
-using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Eventsystem.Controllers
 {
     public class VenuesController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public VenuesController(ApplicationDbContext context)
+        public VenuesController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Venues.ToListAsync());
+            return View(await _unitOfWork.Venues.GetAllAsync());
         }
 
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            var venue = await _context.Venues.FirstOrDefaultAsync(v => v.Id == id);
+            var venue = await _unitOfWork.Venues.GetByIdAsync(id.Value);
+
             if (venue == null) return NotFound();
 
             return View(venue);
@@ -40,10 +40,12 @@ namespace Eventsystem.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(venue);
-                await _context.SaveChangesAsync();
+                await _unitOfWork.Venues.AddAsync(venue);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(venue);
         }
 
@@ -51,7 +53,8 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var venue = await _context.Venues.FindAsync(id);
+            var venue = await _unitOfWork.Venues.GetByIdAsync(id.Value);
+
             if (venue == null) return NotFound();
 
             return View(venue);
@@ -65,10 +68,12 @@ namespace Eventsystem.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(venue);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Venues.Update(venue);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(venue);
         }
 
@@ -76,7 +81,8 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var venue = await _context.Venues.FirstOrDefaultAsync(v => v.Id == id);
+            var venue = await _unitOfWork.Venues.GetByIdAsync(id.Value);
+
             if (venue == null) return NotFound();
 
             return View(venue);
@@ -86,12 +92,14 @@ namespace Eventsystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var venue = await _context.Venues.FindAsync(id);
+            var venue = await _unitOfWork.Venues.GetByIdAsync(id);
+
             if (venue != null)
             {
-                _context.Venues.Remove(venue);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Venues.Delete(venue);
+                await _unitOfWork.SaveAsync();
             }
+
             return RedirectToAction(nameof(Index));
         }
     }

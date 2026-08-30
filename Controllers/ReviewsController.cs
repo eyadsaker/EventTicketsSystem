@@ -1,46 +1,39 @@
-using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace Eventsystem.Controllers
 {
     public class ReviewsController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ReviewsController(ApplicationDbContext context)
+        public ReviewsController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IActionResult> Index()
         {
-            var reviews = _context.Reviews
-                .Include(r => r.Event)
-                .Include(r => r.User);
-
-            return View(await reviews.ToListAsync());
+            var reviews = await _unitOfWork.Reviews.GetReviewsWithDetailsAsync();
+            return View(reviews);
         }
 
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            var review = await _context.Reviews
-                .Include(r => r.Event)
-                .Include(r => r.User)
-                .FirstOrDefaultAsync(r => r.Id == id);
+            var review = await _unitOfWork.Reviews.GetReviewDetailsAsync(id.Value);
 
             if (review == null) return NotFound();
 
             return View(review);
         }
 
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            PopulateDropDowns();
+            await PopulateDropDowns();
             return View();
         }
 
@@ -51,12 +44,14 @@ namespace Eventsystem.Controllers
             if (ModelState.IsValid)
             {
                 review.CreatedAt = DateTime.Now;
-                _context.Add(review);
-                await _context.SaveChangesAsync();
+
+                await _unitOfWork.Reviews.AddAsync(review);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
 
-            PopulateDropDowns(review);
+            await PopulateDropDowns(review);
             return View(review);
         }
 
@@ -64,10 +59,10 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var review = await _context.Reviews.FindAsync(id);
+            var review = await _unitOfWork.Reviews.GetByIdAsync(id.Value);
             if (review == null) return NotFound();
 
-            PopulateDropDowns(review);
+            await PopulateDropDowns(review);
             return View(review);
         }
 
@@ -79,12 +74,13 @@ namespace Eventsystem.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(review);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Reviews.Update(review);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
 
-            PopulateDropDowns(review);
+            await PopulateDropDowns(review);
             return View(review);
         }
 
@@ -92,10 +88,7 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var review = await _context.Reviews
-                .Include(r => r.Event)
-                .Include(r => r.User)
-                .FirstOrDefaultAsync(r => r.Id == id);
+            var review = await _unitOfWork.Reviews.GetReviewDetailsAsync(id.Value);
 
             if (review == null) return NotFound();
 
@@ -106,19 +99,22 @@ namespace Eventsystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var review = await _context.Reviews.FindAsync(id);
+            var review = await _unitOfWork.Reviews.GetByIdAsync(id);
             if (review != null)
             {
-                _context.Reviews.Remove(review);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Reviews.Delete(review);
+                await _unitOfWork.SaveAsync();
             }
             return RedirectToAction(nameof(Index));
         }
 
-        private void PopulateDropDowns(Review? review = null)
+        private async Task PopulateDropDowns(Review? review = null)
         {
-            ViewBag.EventId = new SelectList(_context.Events, "Id", "Title", review?.EventId);
-            ViewBag.UserId = new SelectList(_context.Users, "Id", "FullName", review?.UserId);
+            var events = await _unitOfWork.Events.GetAllAsync();
+            var users = await _unitOfWork.Users.GetAllAsync();
+
+            ViewBag.EventId = new SelectList(events, "Id", "Title", review?.EventId);
+            ViewBag.UserId = new SelectList(users, "Id", "FullName", review?.UserId);
         }
     }
 }

@@ -1,5 +1,5 @@
-﻿using Eventsystem.Data;
-using Eventsystem.Models;
+﻿using Eventsystem.Models;
+using Eventsystem.Repositories.Interfaces;
 using Eventsystem.ViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -10,24 +10,18 @@ namespace Eventsystem.Controllers
 {
     public class BookingsController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public BookingsController(ApplicationDbContext context)
+        public BookingsController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IActionResult> Index()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userBookings = await _context.Bookings
-                .Include(b => b.Items)
-                    .ThenInclude(i => i.TicketType)
-                        .ThenInclude(t => t.Event)
-                .Where(b => b.UserId == userId)
-                .OrderByDescending(b => b.BookingDate)
-                .ToListAsync();
+            var userBookings = await _unitOfWork.Bookings.GetUserBookingsAsync(userId!);
 
             return View(userBookings);
         }
@@ -36,21 +30,17 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var booking = await _context.Bookings
-                .Include(b => b.User)
-                .Include(b => b.Items)
-                    .ThenInclude(i => i.TicketType)
-                        .ThenInclude(t => t.Event) 
-                .FirstOrDefaultAsync(b => b.Id == id);
+            var booking = await _unitOfWork.Bookings.GetBookingDetailsAsync(id.Value);
 
             if (booking == null) return NotFound();
 
             return View(booking);
         }
 
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            ViewBag.UserId = new SelectList(_context.Users, "Id", "FullName");
+            var users = await _unitOfWork.Users.GetAllAsync();
+            ViewBag.UserId = new SelectList(users, "Id", "FullName");
             return View();
         }
 
@@ -64,10 +54,10 @@ namespace Eventsystem.Controllers
                 return RedirectToAction("Index", "Events");
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                var ticketType = await _context.TicketTypes.FindAsync(model.TicketTypeId);
+                var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(model.TicketTypeId);
                 if (ticketType == null)
                 {
                     return NotFound();
@@ -90,8 +80,8 @@ namespace Eventsystem.Controllers
                     Status = BookingStatus.Confirmed
                 };
 
-                _context.Bookings.Add(booking);
-                await _context.SaveChangesAsync();
+                await _unitOfWork.Bookings.AddAsync(booking);
+                await _unitOfWork.SaveAsync();
 
                 var bookingItem = new BookingItem
                 {
@@ -101,12 +91,12 @@ namespace Eventsystem.Controllers
                     UnitPrice = ticketType.Price
                 };
 
-                _context.BookingItems.Add(bookingItem);
+                await _unitOfWork.BookingItems.AddAsync(bookingItem);
 
                 ticketType.SoldQuantity += model.Quantity;
-                _context.Update(ticketType);
+                _unitOfWork.TicketTypes.Update(ticketType);
 
-                await _context.SaveChangesAsync();
+                await _unitOfWork.SaveAsync();
                 await transaction.CommitAsync();
 
                 TempData["Success"] = "Tickets have been successfully booked";
@@ -129,10 +119,11 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var booking = await _context.Bookings.FindAsync(id);
+            var booking = await _unitOfWork.Bookings.GetByIdAsync(id.Value);
             if (booking == null) return NotFound();
 
-            ViewBag.UserId = new SelectList(_context.Users, "Id", "FullName", booking.UserId);
+            var users = await _unitOfWork.Users.GetAllAsync();
+            ViewBag.UserId = new SelectList(users, "Id", "FullName", booking.UserId);
             return View(booking);
         }
 
@@ -144,12 +135,13 @@ namespace Eventsystem.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(booking);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Bookings.Update(booking);
+                await _unitOfWork.SaveAsync();
                 return RedirectToAction(nameof(Index));
             }
 
-            ViewBag.UserId = new SelectList(_context.Users, "Id", "FullName", booking.UserId);
+            var users = await _unitOfWork.Users.GetAllAsync();
+            ViewBag.UserId = new SelectList(users, "Id", "FullName", booking.UserId);
             return View(booking);
         }
 
@@ -157,9 +149,7 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var booking = await _context.Bookings
-                .Include(b => b.User)
-                .FirstOrDefaultAsync(b => b.Id == id);
+            var booking = await _unitOfWork.Bookings.GetBookingDetailsAsync(id.Value);
 
             if (booking == null) return NotFound();
 
@@ -170,11 +160,11 @@ namespace Eventsystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var booking = await _context.Bookings.FindAsync(id);
+            var booking = await _unitOfWork.Bookings.GetByIdAsync(id);
             if (booking != null)
             {
-                _context.Bookings.Remove(booking);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Bookings.Delete(booking);
+                await _unitOfWork.SaveAsync();
             }
             return RedirectToAction(nameof(Index));
         }

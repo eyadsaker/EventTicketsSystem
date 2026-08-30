@@ -1,42 +1,39 @@
-using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace Eventsystem.Controllers
 {
     public class TicketTypesController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public TicketTypesController(ApplicationDbContext context)
+        public TicketTypesController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IActionResult> Index()
         {
-            var types = _context.TicketTypes.Include(t => t.Event);
-            return View(await types.ToListAsync());
+            var types = await _unitOfWork.TicketTypes.GetTicketTypesWithEventAsync();
+            return View(types);
         }
 
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            var type = await _context.TicketTypes
-                .Include(t => t.Event)
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var type = await _unitOfWork.TicketTypes.GetTicketTypeDetailsAsync(id.Value);
 
             if (type == null) return NotFound();
 
             return View(type);
         }
 
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            ViewBag.EventId = new SelectList(_context.Events, "Id", "Title");
+            await PopulateDropDowns();
             return View();
         }
 
@@ -46,12 +43,13 @@ namespace Eventsystem.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(ticketType);
-                await _context.SaveChangesAsync();
+                await _unitOfWork.TicketTypes.AddAsync(ticketType);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
 
-            ViewBag.EventId = new SelectList(_context.Events, "Id", "Title", ticketType.EventId);
+            await PopulateDropDowns(ticketType);
             return View(ticketType);
         }
 
@@ -59,10 +57,10 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var type = await _context.TicketTypes.FindAsync(id);
+            var type = await _unitOfWork.TicketTypes.GetByIdAsync(id.Value);
             if (type == null) return NotFound();
 
-            ViewBag.EventId = new SelectList(_context.Events, "Id", "Title", type.EventId);
+            await PopulateDropDowns(type);
             return View(type);
         }
 
@@ -74,12 +72,13 @@ namespace Eventsystem.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(ticketType);
-                await _context.SaveChangesAsync();
+                _unitOfWork.TicketTypes.Update(ticketType);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
 
-            ViewBag.EventId = new SelectList(_context.Events, "Id", "Title", ticketType.EventId);
+            await PopulateDropDowns(ticketType);
             return View(ticketType);
         }
 
@@ -87,9 +86,7 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var type = await _context.TicketTypes
-                .Include(t => t.Event)
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var type = await _unitOfWork.TicketTypes.GetTicketTypeDetailsAsync(id.Value);
 
             if (type == null) return NotFound();
 
@@ -100,13 +97,19 @@ namespace Eventsystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var type = await _context.TicketTypes.FindAsync(id);
+            var type = await _unitOfWork.TicketTypes.GetByIdAsync(id);
             if (type != null)
             {
-                _context.TicketTypes.Remove(type);
-                await _context.SaveChangesAsync();
+                _unitOfWork.TicketTypes.Delete(type);
+                await _unitOfWork.SaveAsync();
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        private async Task PopulateDropDowns(TicketType? ticketType = null)
+        {
+            var events = await _unitOfWork.Events.GetAllAsync();
+            ViewBag.EventId = new SelectList(events, "Id", "Title", ticketType?.EventId);
         }
     }
 }

@@ -1,6 +1,8 @@
-﻿namespace Eventsystem.Repositories.Interfaces
+﻿using Microsoft.EntityFrameworkCore.Storage;
+
+namespace Eventsystem.Repositories.Interfaces
 {
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IDisposable
     {
         IEventRepository Events { get; }
 
@@ -8,12 +10,18 @@
 
         IGenericRepository<Models.Venue> Venues { get; }
 
-        IGenericRepository<Models.Booking> Bookings { get; }
+        IBookingRepository Bookings { get; }
 
-        IGenericRepository<Models.TicketType> TicketTypes { get; }
+        IGenericRepository<Models.BookingItem> BookingItems { get; }
 
-        IGenericRepository<Models.Review> Reviews { get; }
+        ITicketTypeRepository TicketTypes { get; }
+
+        IReviewRepository Reviews { get; }
+
+        IGenericRepository<Models.ApplicationUser> Users { get; }
 
         Task<int> SaveAsync();
+
+        Task<IDbContextTransaction> BeginTransactionAsync();
     }
 }

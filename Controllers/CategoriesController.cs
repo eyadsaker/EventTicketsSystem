@@ -1,29 +1,30 @@
-using Eventsystem.Data;
 using Eventsystem.Models;
+using Eventsystem.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+
 
 namespace Eventsystem.Controllers
 {
     public class CategoriesController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CategoriesController(ApplicationDbContext context)
+        public CategoriesController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Categories.ToListAsync());
+            return View(await _unitOfWork.Categories.GetAllAsync());
         }
 
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id.Value);
+
             if (category == null) return NotFound();
 
             return View(category);
@@ -40,10 +41,12 @@ namespace Eventsystem.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(category);
-                await _context.SaveChangesAsync();
+                await _unitOfWork.Categories.AddAsync(category);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(category);
         }
 
@@ -51,7 +54,8 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id.Value);
+
             if (category == null) return NotFound();
 
             return View(category);
@@ -65,10 +69,12 @@ namespace Eventsystem.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(category);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Categories.Update(category);
+                await _unitOfWork.SaveAsync();
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(category);
         }
 
@@ -76,7 +82,8 @@ namespace Eventsystem.Controllers
         {
             if (id == null) return NotFound();
 
-            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id.Value);
+
             if (category == null) return NotFound();
 
             return View(category);
@@ -86,12 +93,14 @@ namespace Eventsystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id);
+
             if (category != null)
             {
-                _context.Categories.Remove(category);
-                await _context.SaveChangesAsync();
+                _unitOfWork.Categories.Delete(category);
+                await _unitOfWork.SaveAsync();
             }
+
             return RedirectToAction(nameof(Index));
         }
     }
